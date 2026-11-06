@@ -4,6 +4,7 @@ import type { AssistantChannel } from '@yomitomo/shared';
 export type AssistantRunRecord = {
   agentId: string;
   channel: AssistantChannel;
+  triggerId?: string;
   forkId: number;
   delivery: string;
   deliveredIds: string[];

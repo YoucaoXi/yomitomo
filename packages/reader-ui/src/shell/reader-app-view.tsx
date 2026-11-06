@@ -61,6 +61,7 @@ function ReaderAppViewComponent(
     overlays,
     selection,
     settings,
+    sidePanel,
     toc,
     toolbar,
     userProfile,
@@ -249,7 +250,15 @@ function ReaderAppViewComponent(
           .filter(Boolean)
           .join(' ')}
         style={style}
-        onPointerDownCapture={handleReaderPointerDownCapture}
+        onPointerDownCapture={(event) => {
+          if (
+            sidePanel &&
+            event.target instanceof Element &&
+            event.target.closest('[data-reader-side-panel]')
+          )
+            return;
+          handleReaderPointerDownCapture(event);
+        }}
       >
         <ReaderToolbar
           articleLeadingVisual={toolbar?.articleLeadingVisual}
@@ -316,13 +325,14 @@ function ReaderAppViewComponent(
             refs={surfaceRefs}
             selection={selection}
             settings={settings}
+            sidePanel={sidePanel}
             userProfile={userProfile}
           />
         </main>
 
         {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
 
-        {chat && chatActions ? (
+        {chat && chatActions && !sidePanel ? (
           <ReaderChatPanel
             activationSource={chatActivationSource}
             agents={agents}

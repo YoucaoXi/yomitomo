@@ -1,4 +1,5 @@
 import { eq, inArray } from 'drizzle-orm';
+import { isPdfTextAnchor } from '@yomitomo/shared';
 import type {
   ArticleStorePatch,
   AssistantChannel,
@@ -26,8 +27,15 @@ export type ChannelReply = Pick<
 // Annotation threads live in the comments table and 问一问 sessions in the article's reader
 // chat state; agents see both as channels of messages.
 export function createAssistantChannelSources(publishPatch: (patch: ArticleStorePatch) => void) {
-  function publishReply(articleId: string, channel: AssistantChannel, reply: ChannelReply) {
-    if (channel.kind === 'chat') return publishChatReply(articleId, channel.sessionId, reply);
+  function publishReply(
+    articleId: string,
+    channel: AssistantChannel,
+    reply: ChannelReply,
+    triggerId?: string,
+  ) {
+    if (channel.kind === 'chat') {
+      return publishChatReply(articleId, channel.sessionId, reply, triggerId);
+    }
     if (!readChannel(articleId, channel)) return false;
     const comment: Comment = {
       ...reply,
@@ -42,17 +50,37 @@ export function createAssistantChannelSources(publishPatch: (patch: ArticleStore
     return Boolean(patch);
   }
 
-  function publishChatReply(articleId: string, sessionId: string, reply: ChannelReply) {
+  function publishChatReply(
+    articleId: string,
+    sessionId: string,
+    reply: ChannelReply,
+    triggerId?: string,
+  ) {
     const state = readChatState(articleId);
     const session = state?.sessions.find((item) => item.id === sessionId);
     if (!state || !session) return false;
     if (session.messages.some((message) => message.id === reply.id)) return true;
+    const source = triggerId
+      ? session.messages.find((message) => message.id === triggerId && message.role === 'user')
+          ?.context
+      : undefined;
+    const context =
+      source?.sourceType === 'pdf' && source.anchor && isPdfTextAnchor(source.anchor)
+        ? {
+            sourceType: source.sourceType,
+            quote: source.quote,
+            title: source.title,
+            locationLabel: source.locationLabel,
+            anchor: source.anchor,
+          }
+        : undefined;
     const message: ReaderChatMessage = {
       id: reply.id,
       role: 'assistant',
       content: reply.content,
       assistantId: reply.author.kind === 'agent' ? reply.author.agentId : undefined,
       ...(reply.assistantProgress ? { assistantProgress: reply.assistantProgress } : {}),
+      ...(context ? { context } : {}),
       createdAt: reply.createdAt,
     };
     const sessions = [...state.sessions];

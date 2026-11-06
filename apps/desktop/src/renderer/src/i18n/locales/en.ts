@@ -1150,6 +1150,80 @@ export const enResources = {
       pageLabel: 'Page {{page}}',
       pageRange: 'Pages {{start}}-{{end}}',
     },
+    pdfPaper: {
+      title: 'Paper assistant',
+      close: 'Collapse paper assistant',
+      openPanel: 'Open paper assistant',
+      resizePanel: 'Resize paper assistant',
+      fitWidth: 'Fit width',
+      saveAnswer: 'Save to notes',
+      revealSavedAnswer: 'Open saved note',
+      modelSettings: 'Model settings',
+      modeLabel: 'Paper task type',
+      styleLabel: 'Translation style',
+      perspectiveLabel: 'Perspective',
+      fieldLabel: 'Discipline',
+      fieldPlaceholder: 'e.g. inertial navigation',
+      tasksLabel: 'Preset tasks',
+      contentLabel: 'Sidebar content',
+      selectText: 'Select text in the PDF, then choose a preset task.',
+      selectTranslationText: 'Select a passage or the abstract, then choose the matching task.',
+      faithful: 'Faithful translation',
+      academic: 'Academic English',
+      notes: 'Highlights & notes',
+      results: 'Assistant results',
+      modes: { reading: 'Read paper', translation: 'Translate', principles: 'Explain principles' },
+      perspectives: {
+        general: 'General',
+        practical: 'Practical use',
+        algorithm: 'Implementation',
+        domain: 'Discipline',
+      },
+      tasks: {
+        explain: 'Explain selection',
+        decompose: 'Break down method',
+        challenge: 'Question conclusion',
+        connect: 'Connect to paper',
+        translateSelection: 'Translate selection',
+        translateAbstract: 'Translate abstract',
+        intuition: 'Build intuition',
+        steps: 'Explain step by step',
+        derivation: 'Derive equation',
+      },
+      prompts: {
+        explain:
+          'Explain the selected passage, including key terms, implied premises, and its purpose in this section.',
+        decompose:
+          'Break down the method in the selection. Identify its research objective, inputs, outputs, steps, assumptions, and controls.',
+        challenge:
+          'Examine the conclusion in the selection. Separate the authors’ claim, the supporting evidence, and its limitations.',
+        connect:
+          'Place the selection in the paper as a whole. Find related sections and explain how it connects the research question, methods, and results.',
+        translateSelection: 'Translate the selected passage into English.',
+        translateAbstract:
+          'Translate the selected abstract into English. If the selection includes only part of the abstract, translate only that part and say so.',
+        intuition:
+          'Explain the principle in the selection with a simple intuition and one example, including the conditions it depends on.',
+        steps:
+          'Explain the principle in the selection step by step. Give the input, what changes, and how that affects the next step.',
+        derivation:
+          'Explain the legible equations, symbols, and derivation in the selection. Identify missing formulas or premises if needed.',
+        general: 'Prioritize the most important information in the original text.',
+        practical:
+          'Use a practical perspective. Focus on when this works, the cost or resources needed to apply it, and when it may fail.',
+        algorithm:
+          'Use an implementation perspective. Focus on inputs, outputs, algorithm steps, key parameters, and complexity when supported by the paper.',
+        domain: 'Use the named discipline’s terminology, conventions, and use cases.',
+        faithful: 'Preserve the original logic, degree of certainty, and qualifications.',
+        academic:
+          'Use fluent academic English while preserving the technical meaning, degree of certainty, and qualifications.',
+        field: 'Use terminology appropriate for the discipline “{{domain}}”.',
+        analysis:
+          'Answer in English. Separate source evidence from your inferences and cite locatable passages for claims about the paper. Say when evidence is missing.',
+        translation:
+          'Preserve symbols, numbers, units, and citations. Translate only the provided text. Put any necessary terminology notes after the translation.',
+      },
+    },
     source: {
       empty: 'Select an article to view the original text',
       emptyContent: 'No original content yet',

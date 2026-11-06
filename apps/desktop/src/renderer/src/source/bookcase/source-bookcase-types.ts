@@ -29,6 +29,7 @@ type SourceReaderControl = {
   focusAnnotationId: string | null;
   onClose: () => void;
   onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
+  onOpenModelSettings?: () => void;
   selectedAnnotationId: string | null;
 };
 

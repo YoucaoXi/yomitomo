@@ -50,6 +50,9 @@ type PdfiumSelectionAdjustmentOptions = {
   document: PdfiumLoadedDocument | undefined;
   engine: PdfEngine;
   extractPageText: (pageIndex: number) => Promise<string | null>;
+  onAnchorAdjusted: (
+    anchor: NonNullable<ReturnType<typeof pdfiumSelectionAnchorForOffsets>>,
+  ) => void;
   pageMetricsRef: React.RefObject<Record<number, PageMetric>>;
   selectionAction: SelectionAction | null;
   setSelectionAction: React.Dispatch<React.SetStateAction<SelectionAction | null>>;
@@ -62,6 +65,7 @@ export function usePdfiumSelectionAdjustment({
   document,
   engine,
   extractPageText,
+  onAnchorAdjusted,
   pageMetricsRef,
   selectionAction,
   setSelectionAction,
@@ -213,6 +217,7 @@ export function usePdfiumSelectionAdjustment({
       adjustable: true,
       draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
     });
+    onAnchorAdjusted(anchor);
     setTemporaryBoxes(pdfiumTemporaryBoxes(anchor, metric, contributorId));
   }
 

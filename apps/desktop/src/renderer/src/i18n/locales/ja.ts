@@ -1165,6 +1165,78 @@ export const jaResources = {
       pageLabel: 'ページ {{page}}',
       pageRange: 'ページ {{start}}～{{end}}',
     },
+    pdfPaper: {
+      title: '論文アシスタント',
+      close: '論文アシスタントを閉じる',
+      openPanel: '論文アシスタントを開く',
+      resizePanel: '論文アシスタントの幅を調整',
+      fitWidth: '幅に合わせる',
+      saveAnswer: 'メモに保存',
+      revealSavedAnswer: '保存したメモを表示',
+      modelSettings: 'モデル設定',
+      modeLabel: '論文タスクの種類',
+      styleLabel: '翻訳スタイル',
+      perspectiveLabel: '分析の視点',
+      fieldLabel: '専門分野',
+      fieldPlaceholder: '例：慣性航法',
+      tasksLabel: 'プリセットタスク',
+      contentLabel: 'サイドバーの内容',
+      selectText: 'PDF 内のテキストを選び、プリセットを実行します。',
+      selectTranslationText: '翻訳する箇所または要旨を選び、対応するタスクを実行します。',
+      faithful: '原文に忠実',
+      academic: '学術的な日本語',
+      notes: 'ハイライトとメモ',
+      results: 'アシスタントの回答',
+      modes: { reading: '論文を読む', translation: '論文を翻訳', principles: '原理を解説' },
+      perspectives: {
+        general: '一般',
+        practical: '実用性',
+        algorithm: 'アルゴリズム実装',
+        domain: '専門分野',
+      },
+      tasks: {
+        explain: '選択箇所を解説',
+        decompose: '手法を分解',
+        challenge: '結論を検証',
+        connect: '論文全体との関連',
+        translateSelection: '選択箇所を翻訳',
+        translateAbstract: '要旨を翻訳',
+        intuition: '直感的な解説',
+        steps: '段階的な解説',
+        derivation: '数式の導出',
+      },
+      prompts: {
+        explain:
+          '選択した箇所を解説し、主要な用語、暗黙の前提、この節での役割を明らかにしてください。',
+        decompose:
+          '選択箇所の手法を分解し、研究の目的、入力と出力、手順、仮定、対照条件を整理してください。',
+        challenge:
+          '選択箇所の結論を検証し、著者の主張、それを支える証拠、証拠の限界を分けてください。',
+        connect:
+          '選択箇所を論文全体に位置付け、関連節を調べて研究課題、手法、結果とのつながりを説明してください。',
+        translateSelection: '選択した箇所を日本語に翻訳してください。',
+        translateAbstract:
+          '選択した要旨を日本語に翻訳してください。一部だけ選択されている場合は、その範囲だけを訳し、範囲を明記してください。',
+        intuition: '選択箇所の原理と成り立つ条件を、直感的な説明と一つの例で示してください。',
+        steps:
+          '選択箇所の原理を段階的に説明し、各段階の入力、変化、次の段階への影響を示してください。',
+        derivation:
+          '選択箇所で読める数式、記号、導出を説明してください。不足している数式や前提があれば明示してください。',
+        general: '原文の重要な情報を優先してください。',
+        practical:
+          '実用性の観点から、適用条件、導入コストや必要な資源、失敗し得る条件を中心に説明してください。',
+        algorithm:
+          '実装の観点から、入力と出力、アルゴリズムの手順、重要なパラメーター、確認できる計算量を説明してください。',
+        domain: '指定された専門分野の用語、慣行、適用例に沿って説明してください。',
+        faithful: '原文の論理、確信の度合い、限定条件を忠実に保ってください。',
+        academic: '技術的な意味、確信の度合い、限定条件を保ち、自然な学術日本語にしてください。',
+        field: '専門分野「{{domain}}」に適した用語を使用してください。',
+        analysis:
+          '日本語で答え、原文の証拠と推論を分けてください。論文について述べる際は該当箇所を引用し、証拠が不足していれば明記してください。',
+        translation:
+          '数式記号、数字、単位、引用を保ち、提示された原文の範囲だけを訳してください。必要な用語注は訳文の後に置いてください。',
+      },
+    },
     source: {
       empty: '原文を表示するには記事を選択してください',
       emptyContent: 'オリジナルのコンテンツはまだありません',

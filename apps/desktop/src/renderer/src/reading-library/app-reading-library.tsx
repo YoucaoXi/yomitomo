@@ -83,6 +83,7 @@ export function ReadingLibrary({
   onSaveSettings,
   onSetLibraryPin,
   onOpenDataSources,
+  onOpenModelSettings,
 }: {
   agents: Agent[];
   articleActions: ArticleActions;
@@ -106,6 +107,7 @@ export function ReadingLibrary({
   onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void>;
   onOpenDataSources?: () => void;
+  onOpenModelSettings?: () => void;
 }) {
   const {
     cancelArticleUrlImport,
@@ -439,6 +441,7 @@ export function ReadingLibrary({
                   focusAnnotationId: sourceFocusAnnotationId,
                   onClose: openLibraryShelf,
                   onOpenEvidenceSource: (target) => void openEvidenceSource(target),
+                  onOpenModelSettings,
                   selectedAnnotationId: selectedAnnotation?.id || null,
                 }}
               />

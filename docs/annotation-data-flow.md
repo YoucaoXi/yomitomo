@@ -145,6 +145,10 @@ AI 想法（`replyTo` 为空），划线仍归属用户。
 
 ### 问一问
 
+`PDF` 阅读器把论文任务和阅读问答放在同一个侧栏。预设任务明确传入当前选段上下文，
+由阅读问答通道保存提问；回答按触发消息 ID 保存对应 PDF 锚点。用户点击「写入笔记」后，
+回答和原选区通过既有批注保存入口一起写入，来源仍指向提问时的 PDF 选区。
+
 `apps/desktop/src/renderer/src/source/bookcase/use-reader-chat-session.ts` 先把用户消息写入文章的
 reader chat state，再投递到 `{ kind: 'chat', sessionId }` 频道。main 把回答追加到同一 state，
 并广播 `article-reader-chat-state` patch。两边都整列写 reader chat state，所以回答生成期间

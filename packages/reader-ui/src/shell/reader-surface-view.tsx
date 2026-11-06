@@ -100,6 +100,7 @@ export type ReaderSurfaceViewProps = {
   refs: ReaderSurfaceRefs;
   selection: ReaderSelectionModel;
   settings: ReaderSettingsModel;
+  sidePanel?: (notes: React.ReactNode) => React.ReactNode;
   userProfile: UserProfile;
 };
 
@@ -248,6 +249,7 @@ export function ReaderSurfaceView({
   refs: { articleRef, canvasRef, notesRef, selectionMenuRef, surfaceRef },
   selection: { composer, highlightChoice, selectionAction },
   settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
+  sidePanel,
   userProfile,
 }: ReaderSurfaceViewProps) {
   const timeFormatter = React.useMemo(() => createReaderTimeFormatter(labels), [labels]);
@@ -321,6 +323,55 @@ export function ReaderSurfaceView({
           }px`,
           '--reader-note-width': `${annotationRailLayout.railWidth}px`,
         };
+
+  const noteItems = sidePanel
+    ? annotations.map((annotation) => ({
+        annotation,
+        isStackFront: true,
+        railSide: 'right' as const,
+        stackCount: 1,
+        stackIndex: 0,
+        style: undefined,
+      }))
+    : annotationRailItems;
+  const notes = (
+    <aside
+      className={sidePanel ? 'reader-annotation-list' : 'reader-annotation-rail'}
+      ref={sidePanel ? undefined : notesRef}
+      aria-label={sidePanel ? labels.annotationCardTab : '引文讨论'}
+      style={sidePanel ? undefined : annotationRailStyle}
+    >
+      {(showEmptyNotes ?? annotations.length === 0) ? <EmptyNotes labels={labels} /> : null}
+      {noteItems.map(({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
+        <AnnotationCard
+          active={annotation.id === activeId}
+          agents={agents}
+          annotation={annotation}
+          distillationAnimation={
+            distillationAnimation?.annotationId === annotation.id ? distillationAnimation : null
+          }
+          exiting={!sidePanel && exitingAnnotationIds.has(annotation.id)}
+          isStackFront={isStackFront}
+          key={annotation.id}
+          labels={labels}
+          noteRef={noteRefForAnnotation(annotation.id)}
+          pendingAgents={pendingAnnotationAgents[annotation.id]}
+          stackCount={stackCount}
+          stackIndex={stackIndex}
+          railSide={railSide}
+          style={style}
+          userProfile={userProfile}
+          timeFormatter={timeFormatter}
+          onDelete={cardActions.onDelete}
+          onFocus={cardActions.onFocus}
+          onOpenDiscussion={
+            annotationActions.onOpenAnnotationDiscussion ? cardActions.onOpenDiscussion : undefined
+          }
+          personaAgents={personaAgents}
+        />
+      ))}
+    </aside>
+  );
 
   return (
     <div className="reader-surface-frame" ref={layoutChangeRef}>
@@ -396,48 +447,7 @@ export function ReaderSurfaceView({
               />
             ) : null}
           </div>
-          <aside
-            className="reader-annotation-rail"
-            ref={notesRef}
-            aria-label="引文讨论"
-            style={annotationRailStyle}
-          >
-            {(showEmptyNotes ?? annotations.length === 0) ? <EmptyNotes labels={labels} /> : null}
-            {annotationRailItems.map(
-              ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
-                <AnnotationCard
-                  active={annotation.id === activeId}
-                  agents={agents}
-                  annotation={annotation}
-                  distillationAnimation={
-                    distillationAnimation?.annotationId === annotation.id
-                      ? distillationAnimation
-                      : null
-                  }
-                  exiting={exitingAnnotationIds.has(annotation.id)}
-                  isStackFront={isStackFront}
-                  key={annotation.id}
-                  labels={labels}
-                  noteRef={noteRefForAnnotation(annotation.id)}
-                  pendingAgents={pendingAnnotationAgents[annotation.id]}
-                  stackCount={stackCount}
-                  stackIndex={stackIndex}
-                  railSide={railSide}
-                  style={style}
-                  userProfile={userProfile}
-                  timeFormatter={timeFormatter}
-                  onDelete={cardActions.onDelete}
-                  onFocus={cardActions.onFocus}
-                  onOpenDiscussion={
-                    annotationActions.onOpenAnnotationDiscussion
-                      ? cardActions.onOpenDiscussion
-                      : undefined
-                  }
-                  personaAgents={personaAgents}
-                />
-              ),
-            )}
-          </aside>
+          {sidePanel ? null : notes}
           {selectionAction && !composer ? (
             <SelectionMenu
               ref={selectionMenuRef}
@@ -479,6 +489,7 @@ export function ReaderSurfaceView({
           />
         </div>
       </section>
+      {sidePanel?.(notes)}
       <ReaderEdgeBlur position="top" />
       <ReaderEdgeBlur position="bottom" />
     </div>

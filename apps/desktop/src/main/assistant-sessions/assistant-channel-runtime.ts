@@ -80,7 +80,12 @@ export type AssistantChannelPorts = {
   resolveAgent: (agentId: string, allowDisabled: boolean) => Promise<ResolvedChannelAgent>;
   resolveAgentIdentity: (agentId: string) => Promise<ChannelAgentIdentity>;
   readChannel: (articleId: string, channel: AssistantChannel) => ChannelSnapshot | undefined;
-  publishReply: (articleId: string, channel: AssistantChannel, reply: ChannelReply) => boolean;
+  publishReply: (
+    articleId: string,
+    channel: AssistantChannel,
+    reply: ChannelReply,
+    triggerId?: string,
+  ) => boolean;
   existingMessageIds: (articleId: string, ids: string[]) => Set<string>;
   findDiscussion: (articleId: string, id: string) => ReplyDiscussion | undefined;
   articleMeta: (articleId: string) => ArticleMeta | undefined;
@@ -183,6 +188,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const record: AssistantRunRecord = {
       agentId: request.agentId,
       channel: request.channel,
+      ...(request.channel.kind === 'chat' ? { triggerId: request.triggerId } : {}),
       forkId: state.liveForkId ?? -1,
       delivery,
       deliveredIds: state.fresh.map((message) => message.id),
@@ -302,15 +308,23 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const identity = await ports.resolveAgentIdentity(first.agentId).catch(() => undefined);
     const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');
     const commentId = `${first.channel.kind === 'chat' ? 'reader_chat_message' : 'comment'}_${hash.slice(0, 24)}`;
-    const saved = ports.publishReply(articleId, first.channel, {
-      id: commentId,
-      author: identity
-        ? annotationAgentAuthorRef(resolveAgentPublicIdentity(identity.agent, identity.uiLanguage))
-        : { kind: 'agent', agentId: first.agentId, username: first.agentId },
-      content,
-      createdAt: new Date().toISOString(),
-      ...(steps.length > 0 ? { assistantProgress: { steps } } : {}),
-    });
+    const saved = ports.publishReply(
+      articleId,
+      first.channel,
+      {
+        id: commentId,
+        author: identity
+          ? annotationAgentAuthorRef(
+              resolveAgentPublicIdentity(identity.agent, identity.uiLanguage),
+            )
+          : { kind: 'agent', agentId: first.agentId, username: first.agentId },
+        content,
+        createdAt: new Date().toISOString(),
+        ...(steps.length > 0 ? { assistantProgress: { steps } } : {}),
+      },
+      // An answer to merged deliveries has no single triggering question.
+      answered.length === 1 ? first.triggerId : undefined,
+    );
 
     const mainId = (await harness.snapshot(AgentConversationsDoc, context))?.conversations[
       first.agentId

@@ -418,6 +418,7 @@ export type ReaderAppViewProps = {
   overlays?: React.ReactNode;
   selection: ReaderSelectionModel;
   settings: ReaderSettingsModel;
+  sidePanel?: (notes: React.ReactNode) => React.ReactNode;
   toc: ReaderTocModel;
   toolbar?: ReaderToolbarModel;
   userProfile: UserProfile;

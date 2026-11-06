@@ -212,17 +212,25 @@ export function useReaderChatSession({
     await persistState(chat, nextState, chat.state);
   }
 
-  async function submit(content: string) {
+  async function submit(content: string, context = draftContext) {
     const question = content.trim();
     const assistant = agents.find((agent) => agent.id === selectedAssistantId) || agents[0];
-    if (!question || !assistant || sending || submittingRef.current) return;
+    if (!question || sending || submittingRef.current) return;
+    if (!assistant) {
+      dispatch({
+        type: 'failed',
+        articleId: article.id,
+        message: i18next.t('source.readerChatFailed'),
+      });
+      return;
+    }
 
     const chat = readChat();
     const userMessage: ReaderChatMessage = {
       id: makeId('reader_chat_message'),
       role: 'user',
       content: question,
-      context: draftContext,
+      context,
       createdAt: new Date().toISOString(),
     };
     const nextState = updateActiveSession(ensureState(chat, assistant.id), (messages) => [
@@ -264,6 +272,7 @@ export function useReaderChatSession({
       onSubmit: submit,
     },
     askSelection,
+    submit,
     model: {
       draftContext,
       error,

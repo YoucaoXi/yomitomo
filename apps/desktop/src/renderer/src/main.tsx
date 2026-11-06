@@ -284,6 +284,7 @@ function ReadyApp({
                   onSaveSettings={async (settings) => void (await saveSettings(settings))}
                   onSetLibraryPin={setLibraryPin}
                   onOpenDataSources={() => session.actions.openSettingsSection('dataSources')}
+                  onOpenModelSettings={() => session.actions.openSettingsSection('models')}
                 />
               ) : null}
               {session.surface === 'reading-memory' ? (

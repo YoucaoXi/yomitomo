@@ -177,10 +177,12 @@ export type ReaderChatPanelProps = {
   activationSource?: ReaderChatActivationSource;
   agents: PublicAgent[];
   draftContext?: ReaderQuestionContext;
+  embedded?: boolean;
   error?: string;
   labels?: ReaderChatPanelLabels;
   messageSendShortcut: MessageSendShortcut;
   open: boolean;
+  renderMessageAction?: (message: ReaderChatMessage) => React.ReactNode;
   selectedAssistantId?: string;
   sending?: boolean;
   shortcutModifier: string;
@@ -198,10 +200,12 @@ export function ReaderChatPanel({
   activationSource = 'pointer',
   agents,
   draftContext,
+  embedded = false,
   error,
   labels = defaultReaderUiLabels,
   messageSendShortcut,
   open,
+  renderMessageAction,
   selectedAssistantId,
   sending = false,
   shortcutModifier,
@@ -223,8 +227,8 @@ export function ReaderChatPanel({
     dispatch({ type: 'chatToggled', open, source: activationSource });
   }
   const { draft, layout, panelPhase, panelVisible, resizeFeedback, resizing } = chatState;
-  const renderPanel = open || (activationSource === 'pointer' && panelVisible);
-  const viewport = useReaderChatViewport(renderPanel);
+  const renderPanel = open || (!embedded && activationSource === 'pointer' && panelVisible);
+  const viewport = useReaderChatViewport(!embedded && renderPanel);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const activeSession = useMemo(
@@ -237,7 +241,7 @@ export function ReaderChatPanel({
 
   useInterval(
     () => dispatch({ type: 'closeFinished' }),
-    panelVisible && panelPhase === 'closing' ? CHAT_PANEL_EXIT_MS : null,
+    !embedded && panelVisible && panelPhase === 'closing' ? CHAT_PANEL_EXIT_MS : null,
   );
 
   useMountEffect(() => () => resizeCleanupRef.current?.());
@@ -364,25 +368,26 @@ export function ReaderChatPanel({
   const minimizedButtonClassName = ['reader-chat-fab', returningToFab ? 'is-returning' : '']
     .filter(Boolean)
     .join(' ');
-  const minimizedButton = !open ? (
-    <ReaderTooltip
-      content={<ShortcutTooltipContent keys={['Q']} label={labels.openReaderChat} />}
-      side="top"
-    >
-      <button
-        className={minimizedButtonClassName}
-        type="button"
-        aria-label={labels.openReaderChat}
-        aria-expanded={false}
-        onClick={() => onOpen('pointer')}
+  const minimizedButton =
+    !embedded && !open ? (
+      <ReaderTooltip
+        content={<ShortcutTooltipContent keys={['Q']} label={labels.openReaderChat} />}
+        side="top"
       >
-        <HugeiconsIcon icon={MessageQuestionIcon} size={20} strokeWidth={2.15} />
-        <span className="reader-chat-fab-shortcut" aria-hidden="true">
-          Q
-        </span>
-      </button>
-    </ReaderTooltip>
-  ) : null;
+        <button
+          className={minimizedButtonClassName}
+          type="button"
+          aria-label={labels.openReaderChat}
+          aria-expanded={false}
+          onClick={() => onOpen('pointer')}
+        >
+          <HugeiconsIcon icon={MessageQuestionIcon} size={20} strokeWidth={2.15} />
+          <span className="reader-chat-fab-shortcut" aria-hidden="true">
+            Q
+          </span>
+        </button>
+      </ReaderTooltip>
+    ) : null;
 
   if (!renderPanel) return minimizedButton;
 
@@ -392,7 +397,7 @@ export function ReaderChatPanel({
     '--reader-chat-resize-scale-y': resizeFeedback.scaleY.toFixed(4),
     '--reader-chat-panel-width': `${panelSize.width}px`,
   };
-  const panelClassName = [
+  const floatingPanelClassName = [
     'reader-chat-panel',
     `is-${panelPhase}`,
     layout.mode === 'custom' ? 'is-custom' : '',
@@ -405,57 +410,65 @@ export function ReaderChatPanel({
     <>
       {minimizedButton}
       <section
-        ref={attachPanel}
-        className={panelClassName}
+        ref={embedded ? undefined : attachPanel}
+        className={embedded ? 'reader-chat-embedded' : floatingPanelClassName}
         data-open={open ? 'true' : 'false'}
         data-activation-source={activationSource}
         data-state={panelPhase}
-        style={panelStyle}
+        style={embedded ? undefined : panelStyle}
         aria-label={labels.readerChatAria}
       >
-        <div
-          className="reader-chat-resize-handle is-top-left"
-          aria-hidden="true"
-          onPointerDown={(event) => startResize(event, { left: true, top: true })}
-        />
-        <div
-          className="reader-chat-resize-handle is-top"
-          aria-hidden="true"
-          onPointerDown={(event) => startResize(event, { top: true })}
-        />
-        <div
-          className="reader-chat-resize-handle is-left"
-          aria-hidden="true"
-          onPointerDown={(event) => startResize(event, { left: true })}
-        />
-        <header className="reader-chat-header">
-          <div>
-            <strong>{labels.readerChat}</strong>
-          </div>
-          <div className="reader-chat-header-actions">
-            <ReaderTooltip
-              content={<ShortcutTooltipContent keys={['Q']} label={labels.collapseReaderChat} />}
-              side="left"
-            >
-              <button
-                type="button"
-                aria-label={labels.collapseReaderChat}
-                onClick={() => onClose('pointer')}
-              >
-                <HugeiconsIcon icon={MinusSignIcon} size={16} />
-              </button>
-            </ReaderTooltip>
-          </div>
-        </header>
+        {!embedded ? (
+          <>
+            <div
+              className="reader-chat-resize-handle is-top-left"
+              aria-hidden="true"
+              onPointerDown={(event) => startResize(event, { left: true, top: true })}
+            />
+            <div
+              className="reader-chat-resize-handle is-top"
+              aria-hidden="true"
+              onPointerDown={(event) => startResize(event, { top: true })}
+            />
+            <div
+              className="reader-chat-resize-handle is-left"
+              aria-hidden="true"
+              onPointerDown={(event) => startResize(event, { left: true })}
+            />
+            <header className="reader-chat-header">
+              <div>
+                <strong>{labels.readerChat}</strong>
+              </div>
+              <div className="reader-chat-header-actions">
+                <ReaderTooltip
+                  content={
+                    <ShortcutTooltipContent keys={['Q']} label={labels.collapseReaderChat} />
+                  }
+                  side="left"
+                >
+                  <button
+                    type="button"
+                    aria-label={labels.collapseReaderChat}
+                    onClick={() => onClose('pointer')}
+                  >
+                    <HugeiconsIcon icon={MinusSignIcon} size={16} />
+                  </button>
+                </ReaderTooltip>
+              </div>
+            </header>
+          </>
+        ) : null}
 
         <div className="reader-chat-messages" ref={attachMessages}>
           {activeSession?.messages.length ? (
             activeSession.messages.map((message) => (
               <ReaderChatMessageView
+                action={renderMessageAction?.(message)}
                 agents={agents}
                 key={message.id}
                 labels={labels}
                 message={message}
+                showAvatar={!embedded}
                 streaming={message.id === streamingAssistantMessageId}
                 onOpenReference={onOpenReference}
                 onRevealContext={onRevealContext}
@@ -471,7 +484,7 @@ export function ReaderChatPanel({
           ref={attachTextarea}
           className="reader-chat-composer"
           accessory={
-            agents.length > 0 ? (
+            !embedded && agents.length > 0 ? (
               <div className="reader-chat-agent-tray" aria-label={labels.readerChatAssistantPicker}>
                 <AgentAvatarStack
                   agents={agents}
@@ -531,16 +544,20 @@ export function ReaderChatPanel({
 }
 
 function ReaderChatMessageView({
+  action,
   agents,
   labels = defaultReaderUiLabels,
   message,
+  showAvatar,
   streaming = false,
   onOpenReference,
   onRevealContext,
 }: {
+  action?: React.ReactNode;
   agents: PublicAgent[];
   labels?: ReaderChatMessageLabels;
   message: ReaderChatMessage;
+  showAvatar: boolean;
   streaming?: boolean;
   onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
@@ -559,7 +576,7 @@ function ReaderChatMessageView({
 
   return (
     <article className={`reader-chat-message is-${message.role}`}>
-      {isAssistant ? <AvatarBadge avatar={avatar} fallback={fallback} /> : null}
+      {isAssistant && showAvatar ? <AvatarBadge avatar={avatar} fallback={fallback} /> : null}
       <div className="reader-chat-message-bubble">
         <header>
           {isAssistant ? <strong>{nickname}</strong> : <span aria-hidden="true" />}
@@ -614,6 +631,7 @@ function ReaderChatMessageView({
         ) : (
           <p>{message.content}</p>
         )}
+        {action}
       </div>
     </article>
   );

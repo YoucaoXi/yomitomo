@@ -90,6 +90,28 @@ export const chatAgentStyles = `.reader-chat-fab {
   box-shadow:0 22px 58px color-mix(in srgb,var(--reader-ink) 18%,transparent),0 8px 18px color-mix(in srgb,var(--reader-ink) 8%,transparent);
   transition:box-shadow 140ms ease
 }
+.reader-chat-embedded {
+  display:grid;
+  flex:1;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) auto;
+  width:100%;
+  min-width:0;
+  min-height:0;
+  color:var(--reader-ink);
+  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)
+}
+.reader-chat-embedded .reader-chat-messages {
+  min-height:0
+}
+.reader-chat-embedded .reader-chat-message.is-assistant {
+  grid-template-columns:minmax(0,1fr);
+  justify-self:stretch;
+  max-width:100%
+}
+.reader-chat-embedded .reader-chat-composer {
+  border-radius:0
+}
 @keyframes reader-chat-fab-return {
   0% {
     transform:scale(.92,1.08)

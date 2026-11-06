@@ -86,15 +86,16 @@ const PDF_AUTO_ZOOM_MIN_SCALE = 0.5;
 export function computeAutoPdfZoom(input: {
   viewportWidth: number;
   baseWidth: number;
+  reserveAnnotationRail?: boolean;
 }): number | null {
-  const { viewportWidth, baseWidth } = input;
+  const { viewportWidth, baseWidth, reserveAnnotationRail = true } = input;
   if (viewportWidth <= 0 || baseWidth <= 0) return null;
   const reservedSideSpace =
     PDF_ANNOTATION_RAIL_MIN_WIDTH +
     PDF_ANNOTATION_RAIL_GAP +
     PDF_ANNOTATION_RAIL_EDGE_INSET +
     PDF_ANNOTATION_RAIL_STACK_OUTSET;
-  const widthFirst = (viewportWidth - reservedSideSpace) / baseWidth;
+  const widthFirst = (viewportWidth - (reserveAnnotationRail ? reservedSideSpace : 24)) / baseWidth;
   return Math.min(PDF_AUTO_ZOOM_MAX_SCALE, Math.max(PDF_AUTO_ZOOM_MIN_SCALE, widthFirst));
 }
 

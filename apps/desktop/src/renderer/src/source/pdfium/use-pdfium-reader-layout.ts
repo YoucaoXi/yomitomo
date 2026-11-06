@@ -30,7 +30,7 @@ type PdfReaderLayoutEvent =
       documentScale: number | undefined;
       pageMetrics: Record<number, PageMetric>;
     }
-  | { type: 'zoomChangedByUser' };
+  | { type: 'zoomModeChanged'; automatic: boolean };
 
 const initialPdfReaderLayoutState: PdfReaderLayoutState = {
   autoZoomEnabled: true,
@@ -44,8 +44,10 @@ function pdfReaderLayoutReducer(
   state: PdfReaderLayoutState,
   event: PdfReaderLayoutEvent,
 ): PdfReaderLayoutState {
-  if (event.type === 'zoomChangedByUser') {
-    return state.autoZoomEnabled ? { ...state, autoZoomEnabled: false } : state;
+  if (event.type === 'zoomModeChanged') {
+    return state.autoZoomEnabled === event.automatic
+      ? state
+      : { ...state, autoZoomEnabled: event.automatic };
   }
   let { layoutPageWidth, resetLayoutPageWidth } = state;
   if (event.pageMetrics !== state.pageMetrics) {
@@ -132,7 +134,7 @@ export function usePdfiumReaderLayout({
     [canvasRef, layoutPageWidth, pageMetrics, viewportHeight, viewportWidth],
   );
   const autoZoomScale = autoZoomEnabled
-    ? computeAutoPdfZoom({ viewportWidth, baseWidth: pdfBaseWidth })
+    ? computeAutoPdfZoom({ viewportWidth, baseWidth: pdfBaseWidth, reserveAnnotationRail: false })
     : null;
   const readAutoZoomScale = useStableCallback(() => autoZoomScale);
 
@@ -261,7 +263,11 @@ export function usePdfiumReaderLayout({
     [canvasRef, notesRef],
   );
 
-  const disableAutoZoom = useCallback(() => dispatch({ type: 'zoomChangedByUser' }), []);
+  const disableAutoZoom = useCallback(() => {
+    appliedAutoZoomRef.current = null;
+    dispatch({ type: 'zoomModeChanged', automatic: false });
+  }, []);
+  const fitWidth = useCallback(() => dispatch({ type: 'zoomModeChanged', automatic: true }), []);
   const debugLayoutKey = pdfLayoutDebugEnabled()
     ? JSON.stringify([
         annotationCount,
@@ -278,6 +284,7 @@ export function usePdfiumReaderLayout({
   return {
     annotationRailLayout,
     disableAutoZoom,
+    fitWidth,
     // Rendered after the reader surface so the canvas and annotation rail exist when they attach.
     markers: [
       autoZoomScale == null

@@ -3,11 +3,12 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Loading03Icon,
+  MessageQuestionIcon,
   SearchAddIcon,
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
-import { useCallback, useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
@@ -26,10 +27,18 @@ import {
   isPdfTextAnchor,
   type Annotation,
   type ArticleRecord,
+  type PdfTextAnchor,
+  type ReaderChatMessage,
   type ReaderQuestionContext,
 } from '@yomitomo/shared';
-import { activeTocIndexForOffset, selectionActionPosition, type TocItem } from '@yomitomo/core';
+import {
+  activeTocIndexForOffset,
+  createUserAnnotation,
+  selectionActionPosition,
+  type TocItem,
+} from '@yomitomo/core';
 import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
+import { ReaderChatPanel } from '@yomitomo/reader-ui/reader-chat-panel';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
@@ -77,9 +86,46 @@ import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcas
 import { debugPdfLayout } from './pdfium-layout-debug';
 import { usePdfiumReaderLayout } from './use-pdfium-reader-layout';
 import { usePdfiumOpenLifecycle } from './use-pdfium-open-lifecycle';
+import { PdfPaperPanel } from './pdf-paper-panel';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumBookcaseProps = SourceBookcaseProps<PdfArticleRecord>;
+
+const minimumPanelWidth = 20;
+const maximumPanelWidth = 48;
+
+type PaperPanelState = {
+  paperPanelOpen: boolean;
+  paperPanelWidth: number;
+  paperAnchor: PdfTextAnchor | null;
+  savingReply: string | null;
+};
+
+type PaperPanelEvent =
+  | { type: 'visibilityChanged'; open: boolean }
+  | { type: 'widthChanged'; width: number }
+  | { type: 'anchorChanged'; anchor: PdfTextAnchor }
+  | { type: 'saveChanged'; replyId: string | null };
+
+function paperPanelReducer(state: PaperPanelState, event: PaperPanelEvent): PaperPanelState {
+  switch (event.type) {
+    case 'visibilityChanged':
+      return { ...state, paperPanelOpen: event.open };
+    case 'widthChanged':
+      return {
+        ...state,
+        paperPanelWidth: Math.min(maximumPanelWidth, Math.max(minimumPanelWidth, event.width)),
+      };
+    case 'anchorChanged':
+      return { ...state, paperAnchor: event.anchor };
+    case 'saveChanged':
+      return { ...state, savingReply: event.replyId };
+  }
+}
+
+function paperNoteId(replyId: string) {
+  return `annotation_paper_reply_${replyId}`;
+}
 
 type PdfTocState = { items: TocItem[]; open: boolean; version: number };
 
@@ -118,7 +164,13 @@ function PdfiumArticleReader({
     selectionActionShortcuts,
     uiLanguage,
   },
-  readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
+  readerControl: {
+    focusAnnotationId,
+    onClose,
+    onOpenEvidenceSource,
+    onOpenModelSettings,
+    selectedAnnotationId,
+  },
   engineSource,
 }: PdfiumBookcaseProps & { engineSource: PdfiumEngineSource }) {
   const { t } = useTranslation();
@@ -161,6 +213,7 @@ function PdfiumArticleReader({
                           onArticleChange,
                           onFocusedAnnotation,
                           onOpenEvidenceSource,
+                          onOpenModelSettings,
                           onOpenAnnotation,
                         }}
                         document={{
@@ -226,6 +279,7 @@ type PdfiumDocumentProps = {
     onArticleChange: PdfiumBookcaseProps['annotationActions']['onArticleChange'];
     onFocusedAnnotation: PdfiumBookcaseProps['annotationActions']['onFocusedAnnotation'];
     onOpenEvidenceSource: PdfiumBookcaseProps['readerControl']['onOpenEvidenceSource'];
+    onOpenModelSettings: PdfiumBookcaseProps['readerControl']['onOpenModelSettings'];
     onOpenAnnotation: PdfiumBookcaseProps['annotationActions']['onOpenAnnotation'];
   };
   document: {
@@ -278,6 +332,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onArticleChange,
     onFocusedAnnotation,
     onOpenEvidenceSource,
+    onOpenModelSettings,
     onOpenAnnotation,
   } = actions;
   const { saveArticleReadingProgress } = articleActions;
@@ -290,6 +345,23 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onToggle: onToggleToc,
   } = toc;
   const { t } = useTranslation();
+  const [{ paperPanelOpen, paperPanelWidth, paperAnchor, savingReply }, dispatchPaperPanel] =
+    useReducer(paperPanelReducer, {
+      paperPanelOpen: true,
+      paperPanelWidth: 25,
+      paperAnchor: null,
+      savingReply: null,
+    });
+  const savingReplyRef = useRef<string | null>(null);
+  function resizePaperPanel(width: number) {
+    dispatchPaperPanel({ type: 'widthChanged', width });
+  }
+  function setPaperPanelOpen(open: boolean) {
+    dispatchPaperPanel({ type: 'visibilityChanged', open });
+  }
+  function setPaperAnchor(anchor: PdfTextAnchor) {
+    dispatchPaperPanel({ type: 'anchorChanged', anchor });
+  }
   const documentState = useDocumentState(documentId);
   const { provides: zoomControls } = useZoom(documentId);
   const zoom = documentState?.scale || 1;
@@ -371,7 +443,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
   const { annotations, annotationAgents } = sourceReaderSession;
-  const { actionShortcuts, selection } = sourceReaderWorkspace;
+  const { actionShortcuts, readerChat, selection } = sourceReaderWorkspace;
   const {
     temporaryBoxes,
     setHighlightChoice,
@@ -395,6 +467,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     document: loadedDocument,
     engine,
     extractPageText: extractPdfiumPageText,
+    onAnchorAdjusted: setPaperAnchor,
     pageMetricsRef,
     selectionAction,
     setSelectionAction,
@@ -450,7 +523,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     visibleAnnotationCount: visiblePdfAnnotations.length,
     zoom,
   });
-  const { annotationRailLayout, disableAutoZoom } = readerLayout;
+  const { annotationRailLayout, disableAutoZoom, fitWidth } = readerLayout;
   const navigation = usePdfiumNavigation({
     annotations,
     documentId,
@@ -510,6 +583,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       return;
     }
     if (shortcut === 'ask') {
+      setPaperPanelOpen(true);
       askSelection(selectionAction, readerQuestionContext);
       return;
     }
@@ -528,6 +602,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     const lastRect = anchor.rects[anchor.rects.length - 1];
     const canvas = canvasRef.current;
     if (!metric || !lastRect || !canvas) return;
+    setPaperAnchor(anchor);
     const lastDomRect = new DOMRect(
       metric.left + lastRect.x * metric.width,
       metric.top + lastRect.y * metric.height,
@@ -565,6 +640,77 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       pageNumber: anchor.pageIndex + 1,
       behavior: 'smooth',
     });
+  }
+
+  const currentSelectionAnchor = selectionAction?.anchor;
+  const activePaperAnchor =
+    currentSelectionAnchor && isPdfTextAnchor(currentSelectionAnchor)
+      ? currentSelectionAnchor
+      : paperAnchor;
+
+  function runPaperTask(prompt: string) {
+    if (!activePaperAnchor || readerChat.model.sending) return;
+    setPaperAnchor(activePaperAnchor);
+    readerChat.actions.onOpen();
+    void readerChat.submit(prompt, readerQuestionContext(activePaperAnchor));
+  }
+
+  async function savePaperReply(reply: ReaderChatMessage, anchor: PdfTextAnchor) {
+    const id = paperNoteId(reply.id);
+    if (
+      savingReplyRef.current ||
+      sourceReaderSession.annotationsRef.current.some((item) => item.id === id)
+    )
+      return;
+    savingReplyRef.current = reply.id;
+    dispatchPaperPanel({ type: 'saveChanged', replyId: reply.id });
+    try {
+      const note = createUserAnnotation(anchor, userProfile, reply.content);
+      await sourceReaderSession.saveAnnotation({ ...note, id });
+    } catch {
+      if (sourceReaderApp.isCurrentArticle(article.id)) showStatusMessage(t('common.saveFailed'));
+    } finally {
+      savingReplyRef.current = null;
+      if (sourceReaderApp.isCurrentArticle(article.id)) {
+        dispatchPaperPanel({ type: 'saveChanged', replyId: null });
+      }
+    }
+  }
+
+  function renderPaperReplyAction(reply: ReaderChatMessage) {
+    const context = reply.context;
+    const anchor = context?.anchor;
+    if (
+      reply.role !== 'assistant' ||
+      !reply.content.trim() ||
+      !context ||
+      !anchor ||
+      !isPdfTextAnchor(anchor)
+    ) {
+      return null;
+    }
+    const saved = annotations.some((annotation) => annotation.id === paperNoteId(reply.id));
+    return (
+      <div className="pdf-paper-reply-actions">
+        <button type="button" onClick={() => revealReaderChatContext(context)}>
+          {t('pdfReader.pageLabel', { page: anchor.pageIndex + 1 })}
+        </button>
+        <button
+          disabled={savingReply !== null}
+          type="button"
+          onClick={() => {
+            if (saved) {
+              readerChat.actions.onClose();
+              scrollToAnnotation(paperNoteId(reply.id));
+            } else {
+              void savePaperReply(reply, anchor);
+            }
+          }}
+        >
+          {saved ? t('pdfPaper.revealSavedAnswer') : t('pdfPaper.saveAnswer')}
+        </button>
+      </div>
+    );
   }
 
   function handleAnnotationLayoutChange() {
@@ -797,6 +943,21 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
               zoomControls?.requestZoom(value / 100);
             }}
           />
+          <button className="pdf-paper-toolbar-action" type="button" onClick={fitWidth}>
+            {t('pdfPaper.fitWidth')}
+          </button>
+          {!paperPanelOpen ? (
+            <ReaderTooltip content={t('pdfPaper.openPanel')} side="bottom">
+              <button
+                aria-label={t('pdfPaper.openPanel')}
+                className="reader-icon-button"
+                type="button"
+                onClick={() => setPaperPanelOpen(true)}
+              >
+                <HugeiconsIcon icon={MessageQuestionIcon} size={16} />
+              </button>
+            </ReaderTooltip>
+          ) : null}
         </>
       ),
       headerMeta: {
@@ -872,15 +1033,82 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         },
       }
     : readerAppViewProps;
+  const { chat: readerChatActions, selection: readerSelectionActions } =
+    visibleReaderAppViewProps.actions;
+
+  function renderPaperPanel(notes: React.ReactNode) {
+    const { labels, settings: viewSettings } = visibleReaderAppViewProps;
+    return (
+      <div className="pdf-paper-side-panel" data-reader-side-panel="" hidden={!paperPanelOpen}>
+        <div
+          aria-label={t('pdfPaper.resizePanel')}
+          aria-orientation="vertical"
+          aria-valuemin={minimumPanelWidth}
+          aria-valuemax={maximumPanelWidth}
+          aria-valuenow={Math.round(paperPanelWidth)}
+          className="pdf-paper-divider"
+          role="separator"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            event.stopPropagation();
+            resizePaperPanel(paperPanelWidth + (event.key === 'ArrowLeft' ? 3 : -3));
+          }}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+            const frame = event.currentTarget
+              .closest('.reader-surface-frame')
+              ?.getBoundingClientRect();
+            if (frame?.width) resizePaperPanel(((frame.right - event.clientX) / frame.width) * 100);
+          }}
+        />
+        <PdfPaperPanel
+          busy={readerChat.model.sending}
+          hasSelection={Boolean(activePaperAnchor)}
+          notes={notes}
+          results={
+            <ReaderChatPanel
+              {...readerChat.model}
+              {...readerChat.actions}
+              agents={annotationAgents}
+              embedded
+              labels={labels}
+              messageSendShortcut={viewSettings.messageSendShortcut}
+              renderMessageAction={renderPaperReplyAction}
+              shortcutModifier={viewSettings.shortcutModifier}
+              onOpenReference={readerChatActions?.onOpenReference}
+              onRevealContext={revealReaderChatContext}
+            />
+          }
+          selectedQuote={activePaperAnchor?.exact}
+          showingResults={readerChat.model.open}
+          onClose={() => setPaperPanelOpen(false)}
+          onOpenSettings={onOpenModelSettings}
+          onRunTask={runPaperTask}
+          onShowResults={(show) => {
+            if (show) readerChat.actions.onOpen();
+            else readerChat.actions.onClose();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <section
       className={[
         'source-pdfium-spike-reader',
+        paperPanelOpen ? 'is-paper-panel-open' : '',
         restoringInitialPage ? 'is-restoring-initial-page' : '',
       ]
         .filter(Boolean)
         .join(' ')}
+      style={{ '--pdf-paper-panel-width': `${paperPanelWidth}%` } as React.CSSProperties}
       onKeyDown={handleKeyDown}
     >
       <style>{readerDesktopEmbeddedBundleStyles}</style>
@@ -901,7 +1129,28 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           <span>{statusMessage}</span>
         </div>
       ) : null}
-      <ReaderAppView {...visibleReaderAppViewProps} ref={readerSurfaceRef} />
+      <ReaderAppView
+        {...visibleReaderAppViewProps}
+        actions={{
+          ...visibleReaderAppViewProps.actions,
+          chat: readerChatActions && {
+            ...readerChatActions,
+            onOpen: () => {
+              setPaperPanelOpen(true);
+              readerChatActions.onOpen();
+            },
+          },
+          selection: {
+            ...readerSelectionActions,
+            onAskSelection: (action) => {
+              setPaperPanelOpen(true);
+              readerSelectionActions.onAskSelection?.(action);
+            },
+          },
+        }}
+        ref={readerSurfaceRef}
+        sidePanel={renderPaperPanel}
+      />
       {readingProgress.markers}
       {documentText.prefetchMarker}
       {pageMetricsSource.marker}
